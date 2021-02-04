@@ -1,0 +1,94 @@
+from tkinter import *
+from tkinter import messagebox
+from tkinter import filedialog
+from PIL import ImageTk,Image
+import sys
+import numpy as np
+import cv2
+import os
+
+
+#window
+gui=Tk()
+gui.geometry("700x550")
+gui.title("UI Test")
+
+
+def fOpencamera():
+    import numpy as np
+    import cv2
+
+    cap = cv2.VideoCapture(0)
+
+    while (True):
+        # Capture frame-by-frame
+        ret, frame = cap.read()
+
+        # Our operations on the frame come here
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Display the resulting frame
+        cv2.imshow('frame', gray)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    # When everything done, release the capture
+    cap.release()
+    cv2.destroyAllWindows()
+def fquit(event):
+    #Dialog Box
+    answer=messagebox.askyesno(title='eiei',message="u want to quit?")
+    if answer>0:
+        sys.exit()
+def fopenfile(event):
+    status=messagebox.askyesno(title="eiei",message="u want to quit?")
+    if status>0:
+        sys.exit()
+
+#video
+Fcanvas = Canvas()
+def snd1():
+    os.system("Test.mp4")
+var = IntVar()
+
+rb1 = Button(gui, text= "Play Video", command=snd1,padx=7.5,pady=7.5)
+rb1.grid(row=2,column=1)
+Fcanvas.grid(row=0,column=0)
+
+#Image
+my_pic=Image.open("Image(1).jpg")
+resized = my_pic.resize((350, 188), Image.ANTIALIAS)
+new_pic = ImageTk.PhotoImage(resized)
+img=Label(image=new_pic)
+img.grid(row=0,column=0,columnspan=3,padx=100,pady=100)
+
+#button
+opencameraB=Button(text="opencamera",padx=7.5,pady=7.5,command=fOpencamera,fg="blue")
+opencameraB.grid(row=1,column=0)
+#
+openfileB=Button(text="open file",padx=7.5,pady=10,fg="blue")
+openfileB.bind('<Button-1>',fopenfile)
+openfileB.grid(row=1,column=1)
+#
+quitB=Button(text="quit",padx=7.5,pady=10,fg="red")
+quitB.bind('<Button-1>',fquit)
+quitB.grid(row=1,column=3)
+#
+recordB=Button(text="record",padx=7.5,pady=10,fg="red")
+recordB.grid(row=1,column=2)
+
+#menu
+menubar=Menu(gui)
+fileMenu=Menu(menubar, tearoff=0)
+fileMenu.add_command(label="New")
+fileMenu.add_command(label="Open")
+fileMenu.add_command(label="Save")
+menubar.add_cascade(label="File",menu=fileMenu)
+
+helpMenu=Menu(menubar, tearoff=0)
+helpMenu.add_command(label="Contact")
+helpMenu.add_command(label="How to use")
+helpMenu.add_command(label="Document")
+menubar.add_cascade(label="Help",menu=helpMenu)
+gui.config(menu=menubar)
+gui.mainloop()
