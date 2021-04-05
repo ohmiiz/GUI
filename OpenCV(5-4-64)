@@ -1,0 +1,210 @@
+from tkinter import *
+from tkinter import messagebox
+from tkinter import filedialog
+from PIL import ImageTk, Image
+import sys
+import numpy as np
+import cv2
+import os
+import math
+from math import *
+import numpy as np
+import cv2.aruco as aruco
+import pandas as pd
+from tkinter.filedialog import askopenfile
+import time
+import math
+from math import *
+import numpy as np
+import cv2
+import cv2.aruco as aruco
+import pandas as pd
+from PIL import Image
+#import location as loc
+import time
+
+#define size of ArUco
+markerLength = 0.2 #m
+
+#for track from camera calibration
+matrix_coefficients = [[749.31812184 , 0.00000000e+00,  498.03073966,],
+                       [0.00000000e+00,  758.33526289, 371.25781788,],
+                       [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]]
+distortion_coefficients = [[ 5.88497080e-01, -2.56199844e+00, 3.89273940e-03,  -7.53090833e-04, 3.75919946e+00]] # From calibrte camera
+
+device = 0   #'http://192.168.42.129:4747/mjpegfeed?720x480' #r"D:\2563-4\2-2563\Project\videotest\28.mp4" #'rtsp://192.168.1.40:8080/h264_pcm.sdp'
+cap = cv2.VideoCapture(device)  # Get the camera source
+
+def fquit(event):
+    # Dialog Box
+    answer = messagebox.askyesno(title='eiei', message="u want to quit?")
+    if answer > 0:
+        sys.exit()
+def track():
+    data_tvecs = []  # Prepare to add tvec
+    value_dis = []  # Prepare to get result distance(scalar) unit meter
+    value_blow = []
+    data_cX = []
+    data_cY = []
+    corner_ini = []
+    sum_tvec = 0
+    tvec_ini = np.array([0, 0, 0])
+    tvec = np.array([0, 0, 0])
+    dist = 0
+    prev = 0
+    blow = 0.00
+    cX = 0
+    cY = 0
+    cX_ini = 300
+    cY_ini = 50
+    dist_st = 0
+    ret, frame = cap.read()
+    # frame = cv2.resize(frame, (4000, 5000))
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)  # Change grayscale
+    aruco_dict = aruco.Dictionary_get(aruco.DICT_5X5_250)  # Use 5x5 dictionary to find markers
+    parameters = aruco.DetectorParameters_create()  # Marker detection parameters
+    # lists of ids and the corners beloning to each id
+    corners, ids, rejected_img_points = aruco.detectMarkers(gray, aruco_dict,
+                                                            parameters=parameters,
+                                                            cameraMatrix=np.float32(matrix_coefficients),
+                                                            distCoeff=np.float32(distortion_coefficients))
+    # calculate(ids,corners,matrix_coefficients,distortion_coefficients,frame)
+    if np.all(ids is not None):  # If there are markers found by detector
+        for i in range(0, len(ids)):  # Iterate in markers
+            # Estimate pose of each marker and return the values rvec and tvec---different from camera coefficients
+            rvec, tvec, markerPoints = aruco.estimatePoseSingleMarkers(corners[i], markerLength,
+                                                                       np.float32(matrix_coefficients),
+                                                                       np.float32(distortion_coefficients))
+
+            (rvec - tvec).any()  # get rid of that nasty numpy value array error
+            aruco.drawDetectedMarkers(frame, corners)  # Draw A square around the markers
+            # aruco.drawAxis(frame, np.float32(matrix_coefficients), np.float32(distortion_coefficients),np.float32(rvec), np.float32(tvec), 0.01)  # Draw Axis
+
+            data_tvecs.append(tvec)  # get every data of tvec in array data_tvecs
+
+            length = len(data_tvecs)  # For easy to calculate equation
+            if length > 1:
+                tvec_ini = data_tvecs[0]
+                diff = data_tvecs[length - 1] - tvec_ini  # Find distance between tvec(vector)
+                sum_tvec = sqrt(np.sum(diff ** 2))  # convert vector to scalar
+                dist = sum_tvec
+                value_dis.append(np.round(sum_tvec, 4))  # get the distance data(scalar)  in array value
+
+            # calculate move per blow
+            # length_dis =len(value_dis)
+            # if length_dis
+
+            # if length_dis > 10:
+            #    pile_drive = []
+            #    x=0
+            #    for x in range(5):
+            #        pile_drive.append(value_dis[length-x-1])
+            #    if np.std(pile_drive) > .005:
+            #        blow=float(np.average(pile_drive))-float(blow)
+            #        value_blow.append(blow)
+    if len(corners) > 0:
+        # flatten the ArUco IDs list
+        ids = ids.flatten()
+        corner_ini = corners[0]
+        # loop over the detected ArUCo corners
+        for (markerCorner, markerID) in zip(corners, ids):
+            # extract the marker corners (which are always returned in
+            # top-left, top-right, bottom-right, and bottom-left order)
+            find_center = corners.copy()
+            find_center = markerCorner.reshape((4, 2))
+            (topLeft, topRight, bottomRight, bottomLeft) = find_center
+            # convert each of the (x, y)-coordinate pairs to integers
+            topRight = (int(topRight[0]), int(topRight[1]))
+            bottomRight = (int(bottomRight[0]), int(bottomRight[1]))
+            bottomLeft = (int(bottomLeft[0]), int(bottomLeft[1]))
+            topLeft = (int(topLeft[0]), int(topLeft[1]))
+
+            # compute and draw the center (x, y)-coordinates of the ArUco
+            # marker
+            cX = int((topLeft[0] + bottomRight[0]) / 2.0)
+            cY = int((topLeft[1] + bottomRight[1]) / 2.0)
+            data_cX.append(cX)
+            data_cY.append(cY)
+            if len(data_cX) > 0:
+                cX_ini = data_cX[0]
+                cY_ini = data_cY[0]
+
+            cv2.circle(frame, (cX_ini, cY_ini), 4, (0, 255, 0), -1)
+            cv2.circle(frame, (cX, cY), 4, (0, 0, 255), -1)
+            # draw the ArUco marker ID on the image
+            cv2.putText(frame, str(markerID),
+                        (topLeft[0], topLeft[1] - 15), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 255, 0), 2)
+            cv2.putText(frame, str(topRight),
+                        (topRight[0], topRight[1] - 15), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, (0, 255, 0), 2)
+
+            # cv2.circle(frame, (cX_ini, cY_ini), 4, (0, 255, 0), -1 )
+    cv2.putText(frame, 'Tvec inital  ' + str(tvec_ini),
+                (50, 400), cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, (255, 255, 0), 2)
+    cv2.putText(frame, 'dist  ' + str(np.round(dist, 3)) + '   m',
+                (50, 430), cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, (255, 255, 0), 2)
+    cv2.putText(frame, 'dist  ' + str(np.round(dist_st, 3)) + '   m',
+                (50, 460), cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, (255, 255, 0), 2)
+    # data_value_dis= pd.DataFrame(value_dis, columns = ['real Distance'])
+    # data_blow = pd.DataFrame(value_blow, columns = ['avg blow'])
+    device_s = str(device)
+
+    img = Image.fromarray(frame)
+    imgtk = ImageTk.PhotoImage(image=img)
+    display1.imgtk = imgtk  # Shows frame for display 1
+    display1.configure(image=imgtk)
+    display1.after(10,  track)
+def restart():
+    data_tvecs = []  # Prepare to add tvec
+    value_dis = []  # Prepare to get result distance(scalar) unit meter
+    value_blow = []
+    data_cX = []
+    data_cY = []
+    corner_ini = []
+    sum_tvec = 0
+def record():
+    dist_st = dist
+    track()  # start to track
+
+
+# window
+gui = Tk()
+gui.title("ARUCO")
+frame_rate = 200
+display1 = Label(gui)
+display1.grid(row=0, column=1, padx=10, pady=2)  # Display 1
+Label100 = Label(gui, text='distance= '+str(dist))
+Label100.grid(row=0, column=20)
+
+recordB = Button(text="record", padx=7.5, pady=10, fg="blue", command=record)
+recordB.grid(row=1, column=1)
+#
+restartB = Button(text="restart", padx=7.5, pady=10, fg="blue", command=restart)
+restartB.grid(row=1, column=2)
+#
+quitB = Button(text="quit", padx=7.5, pady=10, fg="red")
+quitB.bind('<Button-1>', fquit)
+quitB.grid(row=1, column=4)
+#
+#resetB = Button(text="reset", padx=7.5, pady=10, fg="blue")
+#resetB.grid(row=1, column=3)
+# menu
+menubar = Menu(gui)
+fileMenu = Menu(menubar, tearoff=0)
+fileMenu.add_command(label="New")
+fileMenu.add_command(label="Open")
+fileMenu.add_command(label="Save")
+menubar.add_cascade(label="File", menu=fileMenu)
+
+helpMenu = Menu(menubar, tearoff=0)
+helpMenu.add_command(label="Contact")
+helpMenu.add_command(label="How to use")
+helpMenu.add_command(label="Document")
+menubar.add_cascade(label="Help", menu=helpMenu)
+gui.config(menu=menubar)
+gui.mainloop()  # Starts GUI
